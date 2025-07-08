@@ -35,17 +35,16 @@ server.use(
     resave: false, // don't save session if unmodified
     saveUninitialized: false, 
     cookie: {
-      secure: false, // Set to true if using HTTPS
+      secure: process.env.NODE_ENV === 'production', // Secure in production
       httpOnly: true, // Helps prevent XSS attacks
-      maxAge:60000 * 60,
-
+      maxAge: 60000 * 60,
     },
   })
 );
 server.use(passport.authenticate("session"));
 server.use(
   cors({
-    origin: 'http://localhost:3000', 
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
     methods:["GET","POST","PUT","DELETE","PATCH"],
     exposedHeaders: ["X-Total-Count"],
@@ -164,6 +163,11 @@ async function main() {
   console.log("Database connected");
 }
 
+// Health check endpoint for Render
+server.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 server.listen(process.env.PORT || 10000, () => {
-  console.log("server started at " + process.env.PORT);
+  console.log("server started at " + (process.env.PORT || 10000));
 });
