@@ -1,8 +1,10 @@
+import { API_BASE_URL } from "../../app/constants";
+
 // A mock function to mimic making an async request for data
 
 export function createProduct(product) {
   return new Promise(async (resolve) => {
-    const response = await fetch('http://localhost:8080/products', {
+    const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
       body: JSON.stringify(product),
       headers: { 'content-type': 'application/json' },
@@ -28,7 +30,7 @@ export function fetchProductById(id) {
       }
       
       // Try to fetch the product
-      const url = `http://localhost:8080/products/${productId}`;
+      const url = `${API_BASE_URL}/products/${productId}`;
       console.log('API: Making request to:', url);
       
       const response = await fetch(url);
@@ -82,7 +84,7 @@ export function fetchAllProductByFilter(filter, sort, pagination) {
   return new Promise(async (resolve) => {
     console.log('Fetching products with query:', queryString);
     const response = await fetch(
-      "http://localhost:8080/products?"+queryString
+      `${API_BASE_URL}/products?${queryString}`
     );
     const data = await response.json();
     console.log('Received products:', data);
@@ -97,7 +99,7 @@ export function fetchAllProductByFilter(filter, sort, pagination) {
 
 export function fetchAllCategories() {
   return new Promise(async (resolve) => {
-    const response = await fetch("http://localhost:8080/categories");
+    const response = await fetch(`${API_BASE_URL}/categories`);
     const data = await response.json();
     resolve({ data });
   });
@@ -105,7 +107,7 @@ export function fetchAllCategories() {
 
 export function fetchAllBrands() {
   return new Promise(async (resolve) => {
-    const response = await fetch("http://localhost:8080/brands");
+    const response = await fetch(`${API_BASE_URL}/brands`);
     const data = await response.json();
     resolve({ data });
   });
@@ -115,7 +117,7 @@ export function deleteProduct(productId) {
   return new Promise(async (resolve, reject) => {
     try {
       console.log('API: Deleting product with ID:', productId);
-      const url = `http://localhost:8080/products/${productId}`;
+      const url = `${API_BASE_URL}/products/${productId}`;
       console.log('API: Making DELETE request to:', url);
       
       const response = await fetch(url, {
@@ -146,7 +148,7 @@ export function updateProduct(product) {
     try {
       console.log('API: Updating product:', product);
       const productId = product._id || product.id;
-      const url = `http://localhost:8080/products/${productId}`;
+      const url = `${API_BASE_URL}/products/${productId}`;
       console.log('API: Making PATCH request to:', url);
       
       const response = await fetch(url, {

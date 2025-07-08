@@ -1,8 +1,9 @@
+import { API_BASE_URL } from "../../app/constants";
 // A mock function to mimic making an async request for data
 import { useCookies } from "react-cookie";
 export  function  createUsers(userData) {
   return new Promise(async (resolve) =>{
-    const response = await fetch('http://localhost:8080/auth/signup',{
+    const response = await fetch(`${API_BASE_URL}/auth/signup`,{
       method:'POST',
       body:JSON.stringify(userData),
       headers:{'Content-type':'application/json'}
@@ -18,7 +19,7 @@ export  function  createUsers(userData) {
 export function signOut() {
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await fetch('http://localhost:8080/auth/logout');
+      const response = await fetch(`${API_BASE_URL}/auth/logout`);
       if (response.ok) {
         resolve({ data:'success' });
       } else {
@@ -36,7 +37,7 @@ export function signOut() {
 export function loginUser(loginInfo) {
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await fetch('http://localhost:8080/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         body: JSON.stringify(loginInfo),
         headers: { 'content-type': 'application/json' },
@@ -65,7 +66,7 @@ export function checkAuth() {
         return;
       }
       
-      const response = await fetch('http://localhost:8080/auth/check', {
+      const response = await fetch(`${API_BASE_URL}/auth/check`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +90,7 @@ export function checkAuth() {
 export function googleLogin(googleToken) {
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await fetch('http://localhost:8080/auth/google', {
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
         method: 'POST',
         body: JSON.stringify({ token: googleToken }),
         headers: { 'content-type': 'application/json' },

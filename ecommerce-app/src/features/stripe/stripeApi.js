@@ -1,7 +1,9 @@
+import { API_BASE_URL } from "../../app/constants";
+
 export const createPaymentIntent = async (totalAmount, orderId) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await fetch('http://localhost:8080/create-payment-intent', {
+      const response = await fetch(`${API_BASE_URL}/create-payment-intent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

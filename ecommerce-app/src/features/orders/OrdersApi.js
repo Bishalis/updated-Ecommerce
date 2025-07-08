@@ -1,7 +1,9 @@
+import { API_BASE_URL } from "../../app/constants";
+
 export  function  addOrder(order) {
     return new Promise(async (resolve) =>{
       const token = localStorage.getItem("token");
-      const response = await fetch('http://localhost:8080/orders',{
+      const response = await fetch(`${API_BASE_URL}/orders`,{
         method:'POST',
         body:JSON.stringify(order),
         headers:{
@@ -17,7 +19,7 @@ export  function  addOrder(order) {
 export function fetchAllOrders() {
   const token = localStorage.getItem("token");
   return new Promise(async (resolve) => {
-    const response = await fetch('http://localhost:8080/orders', {
+    const response = await fetch(`${API_BASE_URL}/orders`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await response.json();
@@ -29,7 +31,7 @@ export function updateOrderStatus(orderId, status) {
   const token = localStorage.getItem("token");
   return new Promise(async (resolve, reject) => {
     try {
-      const response = await fetch(`http://localhost:8080/orders/${orderId}`, {
+      const response = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
         method: 'PATCH',
         body: JSON.stringify({ status }),
         headers: { 
