@@ -1,6 +1,5 @@
 import { API_BASE_URL } from "../../app/constants";
 
-const token = localStorage.getItem("token");
 
 export function addToCart(item) {
   const token = localStorage.getItem("token");
