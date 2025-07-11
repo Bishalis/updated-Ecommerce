@@ -1,3 +1,5 @@
+Live Preview : https://updated-ecommerce-frontend.onrender.com/
+
 🛒 E-Commerce Website (MERN Stack) ()
 🚀 Overview
 This is a fully functional e-commerce website built using the MERN stack (MongoDB, Express.js, React, Node.js). It includes features for both user and admin login, with secure authentication using OAuth.
