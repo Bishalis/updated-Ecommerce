@@ -4,6 +4,7 @@ const { checkAuth } = require('../controller/Auth');
 const router = express.Router();
 
 router .get('/own', checkAuth , fetchUserById)
-    .patch('/:id', updateUser)
+    .patch('/own', checkAuth, updateUser)
+    .patch('/:id', checkAuth,updateUser)
 
 exports.router = router;

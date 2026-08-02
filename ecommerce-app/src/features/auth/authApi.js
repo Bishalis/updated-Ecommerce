@@ -42,15 +42,16 @@ export function loginUser(loginInfo) {
         body: JSON.stringify(loginInfo),
         headers: { 'content-type': 'application/json' },
       });
+
+      const data = await response.json().catch(() => null);
+
       if (response.ok) {
-        const data = await response.json();
         resolve({ data });
       } else {
-        const error = await response.text();
-        reject(error);
+        reject(data || { message: 'Login failed', success: false });
       }
     } catch (error) {
-      reject( error );
+      reject({ message: error?.message || 'Network error', success: false });
     }
 
   });

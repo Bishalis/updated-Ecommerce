@@ -35,10 +35,13 @@ export const fetchLoggedInUserAsync = createAsyncThunk(
 
 export const updateUserAsync = createAsyncThunk(
   "user/updateUser",
-  async (id) => {
-    const response = await updateUser(id);
-    // The value we return becomes the `fulfilled` action payload
-    return response.data;
+  async (updatePayload, { rejectWithValue }) => {
+    try {
+      const response = await updateUser(updatePayload);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error);
+    }
   }
 );
 
@@ -77,7 +80,10 @@ export const authSlice = createSlice({
       })
       .addCase(updateUserAsync.fulfilled, (state, action) => {
         state.status = "idle";
-        state.userOrders = action.payload;
+        state.userInfo = action.payload;
+      })
+      .addCase(updateUserAsync.rejected, (state) => {
+        state.status = "idle";
       })
       .addCase(fetchLoggedInUserAsync.pending, (state) => {
         state.status = "loading";

@@ -1,10 +1,19 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 
+function getJwtSecret() {
+  return process.env.SECRET_KEY || process.env.JWT_SECRET;
+}
+
 
 
 exports.createSecretToken = (id) => {
-  return jwt.sign({ id }, process.env.SECRET_KEY, {
+  const jwtSecret = getJwtSecret();
+  if (!jwtSecret) {
+    throw new Error("JWT secret is not configured. Set SECRET_KEY or JWT_SECRET.");
+  }
+
+  return jwt.sign({ id }, jwtSecret, {
     expiresIn: 3 * 24 * 60 * 60,
   });
 };

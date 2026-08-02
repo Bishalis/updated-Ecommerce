@@ -6,6 +6,8 @@ const bcrypt = require('bcryptjs');
 const { OAuth2Client } = require('google-auth-library');
 require("dotenv").config();
 
+const JWT_SECRET = process.env.SECRET_KEY || process.env.JWT_SECRET;
+
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -68,6 +70,10 @@ exports.createUser = async (req, res, next) => {
 
 // Middleware for protecting routes
 exports.checkAuth = async (req, res, next) => {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ status: false, message: 'Server configuration error' });
+  }
+
   let token = req.cookies.token;
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
@@ -75,7 +81,7 @@ exports.checkAuth = async (req, res, next) => {
   if (!token) {
     return res.status(401).json({ status: false, message: 'No token provided' });
   }
-  jwt.verify(token, process.env.SECRET_KEY, async (err, data) => {
+  jwt.verify(token, JWT_SECRET, async (err, data) => {
     if (err) {
       return res.status(401).json({ status: false, message: 'Invalid token' });
     } else {
@@ -98,6 +104,10 @@ exports.checkAuth = async (req, res, next) => {
 
 // API endpoint for checking authentication status
 exports.checkAuthStatus = async (req, res) => {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ status: false, message: 'Server configuration error' });
+  }
+
   let token = req.cookies.token;
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
@@ -105,7 +115,7 @@ exports.checkAuthStatus = async (req, res) => {
   if (!token) {
     return res.status(401).json({ status: false, message: 'No token provided' });
   }
-  jwt.verify(token, process.env.SECRET_KEY, async (err, data) => {
+  jwt.verify(token, JWT_SECRET, async (err, data) => {
     if (err) {
       return res.status(401).json({ status: false, message: 'Invalid token' });
     } else {
@@ -134,11 +144,39 @@ exports.loginUser = async (req, res, next) => {
     if(!email || !password ){
       return res.status(400).json({message:'All fields are required', success: false});
     }
+
+    if (!JWT_SECRET) {
+      console.error("JWT secret is not configured");
+      return res.status(500).json({
+        message: "Server configuration error",
+        success: false,
+      });
+    }
+
     const user = await User.findOne({ email });
     if(!user){
       return res.status(401).json({message:'Incorrect password or email', success: false}); 
     }
-    const auth = await bcrypt.compare(password,user.password)
+
+    // Accounts created via Google may not have a usable password hash for email login.
+    if (!user.password || typeof user.password !== "string") {
+      return res.status(400).json({
+        message: "This account uses Google sign-in. Please continue with Google.",
+        success: false,
+      });
+    }
+
+    let auth = false;
+    try {
+      auth = await bcrypt.compare(password, user.password);
+    } catch (compareError) {
+      console.error("Password comparison failed:", compareError.message);
+      return res.status(400).json({
+        message: "Unable to login with password for this account. Try resetting password.",
+        success: false,
+      });
+    }
+
     if (!auth) {
       return res.status(401).json({message:'Incorrect password or email', success: false}); 
     }

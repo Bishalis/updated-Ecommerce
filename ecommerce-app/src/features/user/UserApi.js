@@ -28,13 +28,33 @@ export  function  fetchLoggedInUser() {
 
 export  function  updateUser(update) {
   const token = localStorage.getItem("token");
-  return new Promise(async (resolve) =>{
-    const response = await fetch(`${API_BASE_URL}/users/${update.id}`,{
-      method:'PATCH',
-      body:JSON.stringify(update),
-      headers:{'content-type':'application/json', 'Authorization': `Bearer ${token}`}
-    })
-    const data = await response.json()
-    resolve({data})
+  return new Promise(async (resolve, reject) =>{
+    try {
+      const payload = {};
+
+      if (Object.prototype.hasOwnProperty.call(update || {}, "username")) {
+        payload.username = update.username;
+      }
+      if (Object.prototype.hasOwnProperty.call(update || {}, "addresses")) {
+        payload.addresses = update.addresses;
+      }
+      if (Object.prototype.hasOwnProperty.call(update || {}, "profilePicture")) {
+        payload.profilePicture = update.profilePicture;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/users/own`,{
+        method:'PATCH',
+        body:JSON.stringify(payload),
+        headers:{'content-type':'application/json', 'Authorization': `Bearer ${token}`}
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        return reject(data);
+      }
+      resolve({data})
+    } catch (error) {
+      reject(error);
+    }
   });
 }
