@@ -7,6 +7,11 @@ const { OAuth2Client } = require('google-auth-library');
 require("dotenv").config();
 
 const JWT_SECRET = process.env.SECRET_KEY || process.env.JWT_SECRET;
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  secure: process.env.NODE_ENV === "production",
+};
 
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -14,7 +19,14 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 exports.createUser = async (req, res, next) => {
   try {
-    const { email, password, username, role, createdAt } = req.body;
+    const { email, password, username, createdAt } = req.body;
+        if (typeof password !== "string" || password.length < 8) {
+          return res.status(400).json({
+            message: "Password must be at least 8 characters long",
+            success: false,
+          });
+        }
+
     
     // Validate required fields
     if (!email || !password || !username) {
@@ -38,7 +50,7 @@ exports.createUser = async (req, res, next) => {
       email, 
       password, 
       username,
-      role: role || 'user',
+      role: 'user',
       createdAt: createdAt || new Date()
     });
 
@@ -46,24 +58,25 @@ exports.createUser = async (req, res, next) => {
     const token = createSecretToken(user._id);
     
     // Set cookie
-    res.cookie("token", token, {
-      withCredentials: true,
-      httpOnly: false,
-    });
+    res.cookie("token", token, COOKIE_OPTIONS);
 
     // Send success response
     res.status(201).json({ 
       message: "User signed up successfully", 
       success: true, 
-      user 
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      }
     });
 
   } catch (error) {
     console.error(error);
     res.status(500).json({ 
       message: "Internal server error", 
-      success: false,
-      error: error.message 
+      success: false
     });
   }
 };
@@ -85,21 +98,34 @@ exports.checkAuth = async (req, res, next) => {
     if (err) {
       return res.status(401).json({ status: false, message: 'Invalid token' });
     } else {
-      const user = await User.findById(data.id);
-      if (user) {
-        // Set user in request object and continue
-        req.user = {
-          id: user._id,
-          username: user.username,
-          email: user.email,
-          role: user.role
-        };
-        next();
-      } else {
-        return res.status(401).json({ status: false, message: 'User not found' });
+      try {
+        const user = await User.findById(data.id);
+        if (user) {
+          req.user = {
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+          };
+          next();
+        } else {
+          return res.status(401).json({ status: false, message: 'User not found' });
+        }
+      } catch (dbError) {
+        return res.status(500).json({ status: false, message: 'Auth lookup failed' });
       }
     }
   });
+};
+
+exports.checkAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ status: false, message: "Unauthorized" });
+  }
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ status: false, message: "Admin access required" });
+  }
+  next();
 };
 
 // API endpoint for checking authentication status
@@ -119,19 +145,22 @@ exports.checkAuthStatus = async (req, res) => {
     if (err) {
       return res.status(401).json({ status: false, message: 'Invalid token' });
     } else {
-      const user = await User.findById(data.id);
-      if (user) {
-        // Return user info (including role)
-        return res.status(200).json({
-          user: {
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            role: user.role
-          }
-        });
-      } else {
-        return res.status(401).json({ status: false, message: 'User not found' });
+      try {
+        const user = await User.findById(data.id);
+        if (user) {
+          return res.status(200).json({
+            user: {
+              id: user._id,
+              username: user.username,
+              email: user.email,
+              role: user.role
+            }
+          });
+        } else {
+          return res.status(401).json({ status: false, message: 'User not found' });
+        }
+      } catch (dbError) {
+        return res.status(500).json({ status: false, message: 'Auth lookup failed' });
       }
     }
   });
@@ -181,10 +210,7 @@ exports.loginUser = async (req, res, next) => {
       return res.status(401).json({message:'Incorrect password or email', success: false}); 
     }
     const token = createSecretToken(user.id);
-    res.cookie("token", token, {
-      withCredentials: true,
-      httpOnly: false,
-    });
+    res.cookie("token", token, COOKIE_OPTIONS);
     // Return user info (including role) and token
     return res.status(201).json({ 
       message: "User logged in successfully", 
@@ -209,66 +235,76 @@ exports.logout = async (req, res) => {
   res
     .cookie("token", null, {
       expires: new Date(Date.now()),
-      httpOnly: true,
+      ...COOKIE_OPTIONS,
     })
     .sendStatus(200);
 };
 
 exports.resetPasswordRequest = async (req, res) => {
-  const email = req.body.email;
-  const user = await User.findOne({ email: email });
-  if (user) {
+  try {
+    const email = req.body.email;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(200).json({
+        success: true,
+        message: "If the account exists, a reset email has been sent",
+      });
+    }
+
     const token = crypto.randomBytes(48).toString("hex");
     user.resetPasswordToken = token;
+    user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000);
     await user.save();
 
-    // Also set token in email
-    const resetPageLink =
-      "http://localhost:3000/reset-password?token=" + token + "&email=" + email;
-    const subject = "reset password for e-commerce";
-    const html = `<p>Click <a href='${resetPageLink}'>here</a> to Reset Password</p>`;
+    const frontendBase = process.env.FRONTEND_URL || "http://localhost:3000";
+    const resetPageLink = `${frontendBase}/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    const subject = "Reset password for e-commerce";
+    const html = `<p>Click <a href='${resetPageLink}'>here</a> to reset your password.</p>`;
 
-    // lets send email and a token in the mail body so we can verify that user has clicked right link
+    await sendMail({ to: email, subject, html });
 
-    if (email) {
-      const response = await sendMail({ to: email, subject, html });
-      res.json(response);
-    } else {
-      res.sendStatus(400);
-    }
-  } else {
-    res.sendStatus(400);
+    return res.status(200).json({
+      success: true,
+      message: "If the account exists, a reset email has been sent",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to process reset request" });
   }
 };
 
 exports.resetPassword = async (req, res) => {
-  const { email, password, token } = req.body;
+  try {
+    const { email, password, token } = req.body;
+    if (!email || !password || !token) {
+      return res.status(400).json({ success: false, message: "Email, token, and password are required" });
+    }
 
-  const user = await User.findOne({ email: email, resetPasswordToken: token });
-  if (user) {
-    const salt = crypto.randomBytes(16);
-    crypto.pbkdf2(
-      req.body.password,
-      salt,
-      310000,
-      32,
-      "sha256",
-      async function (err, hashedPassword) {
-        user.password = hashedPassword;
-        user.salt = salt;
-        await user.save();
-        const subject = "password successfully reset for e-commerce";
-        const html = `<p>Successfully able to Reset Password</p>`;
-        if (email) {
-          const response = await sendMail({ to: email, subject, html });
-          res.json(response);
-        } else {
-          res.sendStatus(400);
-        }
-      }
-    );
-  } else {
-    res.sendStatus(400);
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    const subject = "Password reset successful";
+    const html = `<p>Your password has been reset successfully.</p>`;
+    await sendMail({ to: email, subject, html });
+
+    return res.status(200).json({ success: true, message: "Password reset successful" });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Failed to reset password" });
   }
 };
 
@@ -302,7 +338,6 @@ exports.googleLogin = async (req, res) => {
       user = await User.create({
         email,
         username,
-        password: crypto.randomBytes(32).toString('hex'), // Random password for Google users
         role: 'user',
         googleId,
         profilePicture: picture,
@@ -321,10 +356,7 @@ exports.googleLogin = async (req, res) => {
     const jwtToken = createSecretToken(user._id);
     
     // Set cookie
-    res.cookie("token", jwtToken, {
-      withCredentials: true,
-      httpOnly: false,
-    });
+    res.cookie("token", jwtToken, COOKIE_OPTIONS);
 
     // Return success response
     return res.status(200).json({
@@ -344,8 +376,7 @@ exports.googleLogin = async (req, res) => {
     console.error('Google login error:', error);
     res.status(500).json({
       message: "Google login failed",
-      success: false,
-      error: error.message
+      success: false
     });
   }
 };

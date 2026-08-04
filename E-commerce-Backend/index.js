@@ -26,8 +26,25 @@ const cookieParser = require("cookie-parser");
 const path = require("path");
 const { Order } = require("./model/Order");
 
+const REQUIRED_ENV_VARS = ["MONGO_DB_URL", "SESSION_KEY", "STRIPE_SERVER_KEY", "STRIPE_ENDPOINT_SECRET"];
+const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+
+if (missingEnvVars.length > 0) {
+  throw new Error(`Missing required environment variables: ${missingEnvVars.join(", ")}`);
+}
+
 //middlewares
 server.use(cookieParser());
+server.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data: https:; script-src 'self' https://js.stripe.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-src https://js.stripe.com https://accounts.google.com;"
+  );
+  next();
+});
 server.use(express.static(path.resolve(__dirname, 'build')));
 server.use(
   session({
@@ -45,13 +62,15 @@ server.use(
 server.use(passport.authenticate("session"));
 server.use(
   cors({
-    origin: ['https://updated-ecommerce-frontend.onrender.com', 'http://localhost:3000'],
+    origin: (process.env.FRONTEND_URL
+      ? process.env.FRONTEND_URL.split(",").map((origin) => origin.trim())
+      : ['https://updated-ecommerce-frontend.onrender.com', 'http://localhost:3000']),
     credentials: true,
     methods:["GET","POST","PUT","DELETE","PATCH"],
     exposedHeaders: ["X-Total-Count"],
   })
 );
-server.use(express.json());
+server.use(express.json({ limit: "1mb" }));
 server.use("/products",productsRouter.router);
 server.use("/categories",  categoriesRouter.router);
 server.use("/brands",  brandsRouter.router);
@@ -81,7 +100,7 @@ server.post(
     try {
       event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
     } catch (err) {
-      response.status(400).send(`Webhook Error: ${err.message}`);
+      response.status(400).send("Webhook signature verification failed");
       return;
     }
 
@@ -157,11 +176,19 @@ server.post("/create-payment-intent", async (req, res) => {
   }
 });
 
-main().catch((error) => console.log(error));
+main().catch((error) => {
+  console.error("Failed to start server:", error.message);
+  process.exit(1);
+});
 
 async function main() {
   await mongoose.connect(process.env.MONGO_DB_URL);
   console.log("Database connected");
+
+  const port = process.env.PORT || 10000;
+  server.listen(port, () => {
+    console.log("server started at " + port);
+  });
 }
 
 // Health check endpoint for Render
@@ -169,6 +196,3 @@ server.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-server.listen(process.env.PORT || 10000, () => {
-  console.log("server started at " + (process.env.PORT || 10000));
-});

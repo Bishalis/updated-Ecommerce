@@ -145,7 +145,6 @@ export const authSlice = createSlice({
   },
 });
 
-export const { increment } = authSlice.actions;
 export const selectLoggedInUser = (state) => state.auth.loggedInUser;
 export const selectUserChecked = (state) => state.auth.userChecked;
 export const selectError = (state) => state.auth.error;

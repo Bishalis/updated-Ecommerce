@@ -3,17 +3,18 @@ import { useForm } from "react-hook-form";
 import { useSelector, useDispatch } from "react-redux";
 import {  selectError, selectLoggedInUser } from "./authSlice";
 import { Link } from "react-router-dom";
+import { requestPasswordReset } from "./authApi";
 
 export const ForgetPassword = () => {
   const dispatch = useDispatch();
   const error = useSelector(selectError);
   const user = useSelector(selectLoggedInUser);
+  const [message, setMessage] = useState(null);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
-  console.log(errors);
   return (
     <div>
       <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
@@ -30,10 +31,20 @@ export const ForgetPassword = () => {
           <form
             noValidate
             className="space-y-6"
-            onSubmit={handleSubmit((data) => {
-              console.log(data);
+            onSubmit={handleSubmit(async (data) => {
+              try {
+                const response = await requestPasswordReset(data.email);
+                setMessage({ type: "success", text: response?.data?.message || "If the account exists, a reset email has been sent" });
+              } catch (requestError) {
+                setMessage({ type: "error", text: requestError?.message || "Unable to process request" });
+              }
             })}
           >
+            {message && (
+              <p className={message.type === "error" ? "text-red-500" : "text-green-600"}>
+                {message.text}
+              </p>
+            )}
             <div>
               <label
                 htmlFor="email"

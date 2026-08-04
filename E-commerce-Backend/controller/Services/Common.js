@@ -1,5 +1,6 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 
 function getJwtSecret() {
   return process.env.SECRET_KEY || process.env.JWT_SECRET;
@@ -23,16 +24,31 @@ exports.sanitizeUser = (user) => {
 };
 
 
-// exports.sendMail = async function ({ to, subject, text, html }) {
-//   let info = await transporter.sendMail({
-//     from: '"E-commerce" <all.rounder786526@gmail.com>', // sender address
-//     to,
-//     subject,
-//     text,
-//     html,
-//   });
-//   return info;
-// };
+exports.sendMail = async function ({ to, subject, text, html }) {
+  if (!process.env.EMAIL_HOST || !process.env.EMAIL_PORT || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error("Email configuration is missing");
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: Number(process.env.EMAIL_PORT),
+    secure: Number(process.env.EMAIL_PORT) === 465,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const info = await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    text,
+    html,
+  });
+
+  return info;
+};
 
 // exports.invoiceTemplate = function (order) {
 //   return `<!DOCTYPE html>

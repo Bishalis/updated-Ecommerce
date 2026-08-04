@@ -81,7 +81,10 @@ exports.addToCart = async (req, res) => {
 exports.deleteFromCart = async (req, res) => {
     const {id} = req.params;
     try {
-        const doc = await Cart.findByIdAndDelete(id);
+    const doc = await Cart.findOneAndDelete({ _id: id, user: req.user.id });
+    if (!doc) {
+      return res.status(404).json({ message: "Cart item not found" });
+    }
         res.status(200).json(doc);
     } catch(error) {
         res.status(400).json(error);
@@ -91,10 +94,17 @@ exports.deleteFromCart = async (req, res) => {
 
 exports.updateCart = async (req, res) => {
     const {id} = req.params;
+  if (req.body.quantity !== undefined && (!Number.isInteger(req.body.quantity) || req.body.quantity < 1 || req.body.quantity > 10)) {
+    return res.status(400).json({ message: "Quantity must be an integer between 1 and 10" });
+  }
+
     try {
-        const cart = await Cart.findByIdAndUpdate(id,req.body,{
+    const cart = await Cart.findOneAndUpdate({ _id: id, user: req.user.id },req.body,{
             new:true
         });
+    if (!cart) {
+      return res.status(404).json({ message: "Cart item not found" });
+    }
         const result = await cart.populate('product');
         const transformedItem = {
             id: result._id.toString(),

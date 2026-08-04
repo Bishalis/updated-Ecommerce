@@ -17,6 +17,7 @@ const userSchema = new Schema({
       },
       password: {
         type: String,
+        minlength: 8,
         required: function() {
           return !this.googleId; // Password only required if not a Google user
         },
@@ -46,6 +47,12 @@ const userSchema = new Schema({
           }
         ],
         default: [],
+      },
+      resetPasswordToken: {
+        type: String,
+      },
+      resetPasswordExpires: {
+        type: Date,
       },
 })
 

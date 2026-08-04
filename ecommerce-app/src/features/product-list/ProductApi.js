@@ -3,13 +3,20 @@ import { API_BASE_URL } from "../../app/constants";
 // A mock function to mimic making an async request for data
 
 export function createProduct(product) {
-  return new Promise(async (resolve) => {
+  return new Promise(async (resolve, reject) => {
+    const token = localStorage.getItem("token");
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'POST',
       body: JSON.stringify(product),
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
     });
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return reject(data || { message: "Failed to create product" });
+    }
     resolve({ data });
   });
 }
@@ -17,12 +24,8 @@ export function createProduct(product) {
 export function fetchProductById(id) {
   return new Promise(async (resolve, reject) => {
     try {
-      // Log the incoming ID
-      console.log('API: Raw ID received:', id, 'Type:', typeof id);
-      
       // Ensure id is a string and trim any whitespace
       const productId = String(id).trim();
-      console.log('API: Processed ID:', productId);
       
       // Validate the ID format
       if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -31,14 +34,10 @@ export function fetchProductById(id) {
       
       // Try to fetch the product
       const url = `${API_BASE_URL}/products/${productId}`;
-      console.log('API: Making request to:', url);
-      
       const response = await fetch(url);
-      console.log('API: Response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API: Error response:', errorText);
         throw new Error(`Failed to fetch product: ${errorText}`);
       }
       
@@ -52,7 +51,6 @@ export function fetchProductById(id) {
       
       resolve({ data });
     } catch (error) {
-      console.error('API: Error in fetchProductById:', error);
       reject(error);
     }
   });
@@ -67,30 +65,27 @@ export function fetchAllProductByFilter(filter, sort, pagination) {
     const categoryValues = filter[key];
     if (categoryValues.length) {
       const lastcategoryValue = categoryValues[categoryValues.length - 1];
-      queryString += `${key}=${lastcategoryValue}&`;
+      queryString += `${encodeURIComponent(key)}=${encodeURIComponent(lastcategoryValue)}&`;
     }
   }
 
   for (let key in sort) {
     const categoryValues = sort[key];
-    queryString += `${key}=${categoryValues}&`;
+    queryString += `${encodeURIComponent(key)}=${encodeURIComponent(categoryValues)}&`;
   }
 
   for (let key in pagination) {
     const categoryValues = pagination[key];
-    queryString += `${key}=${categoryValues}&`;
+    queryString += `${encodeURIComponent(key)}=${encodeURIComponent(categoryValues)}&`;
   }
   
-  return new Promise(async (resolve) => {
-    console.log('Fetching products with query:', queryString);
+  return new Promise(async (resolve, reject) => {
     const response = await fetch(
       `${API_BASE_URL}/products?${queryString}`
     );
-    const data = await response.json();
-    console.log('Received products:', data);
-    // Log the first product's ID format
-    if (data && data.length > 0) {
-      console.log('First product ID:', data[0].id, 'Type:', typeof data[0].id);
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      return reject(data || { message: "Failed to fetch products" });
     }
     const totalItems = await response.headers.get('X-Total-Count');
     resolve({ data: { products: data, totalItems: parseInt(totalItems) }});
@@ -116,28 +111,25 @@ export function fetchAllBrands() {
 export function deleteProduct(productId) {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('API: Deleting product with ID:', productId);
+      const token = localStorage.getItem("token");
       const url = `${API_BASE_URL}/products/${productId}`;
-      console.log('API: Making DELETE request to:', url);
       
       const response = await fetch(url, {
         method: 'DELETE',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
-      console.log('API: Delete response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API: Delete error response:', errorText);
         reject(new Error(errorText));
       } else {
         const data = await response.json();
-        console.log('API: Delete successful, response:', data);
         resolve({ data });
       }
     } catch (error) {
-      console.error('API: Delete request failed:', error);
       reject(error);
     }
   });
@@ -146,30 +138,27 @@ export function deleteProduct(productId) {
 export function updateProduct(product) {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log('API: Updating product:', product);
+      const token = localStorage.getItem("token");
       const productId = product._id || product.id;
       const url = `${API_BASE_URL}/products/${productId}`;
-      console.log('API: Making PATCH request to:', url);
       
       const response = await fetch(url, {
         method: 'PATCH',
         body: JSON.stringify(product),
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
       });
-      
-      console.log('API: Update response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API: Update error response:', errorText);
         reject(new Error(errorText));
       } else {
         const data = await response.json();
-        console.log('API: Update successful, response:', data);
         resolve({ data });
       }
     } catch (error) {
-      console.error('API: Update request failed:', error);
       reject(error);
     }
   });

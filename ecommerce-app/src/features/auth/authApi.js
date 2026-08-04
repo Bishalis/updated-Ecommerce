@@ -1,15 +1,21 @@
 import { API_BASE_URL } from "../../app/constants";
-// A mock function to mimic making an async request for data
-import { useCookies } from "react-cookie";
+
 export  function  createUsers(userData) {
-  return new Promise(async (resolve) =>{
-    const response = await fetch(`${API_BASE_URL}/auth/signup`,{
-      method:'POST',
-      body:JSON.stringify(userData),
-      headers:{'Content-type':'application/json'}
-    })
-    const data = await response.json()
-    resolve({data})
+  return new Promise(async (resolve, reject) =>{
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/signup`,{
+        method:'POST',
+        body:JSON.stringify(userData),
+        headers:{'Content-type':'application/json'}
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return reject(data || { message: "Signup failed", success: false });
+      }
+      resolve({data});
+    } catch (error) {
+      reject({ message: error?.message || "Network error", success: false });
+    }
 });
 }
 
@@ -23,12 +29,11 @@ export function signOut() {
       if (response.ok) {
         resolve({ data:'success' });
       } else {
-        const error = await response.text();
-        reject(error);
+        const errorData = await response.json().catch(() => ({ message: "Logout failed" }));
+        reject(errorData);
       }
     } catch (error) {
-      console.log(error)
-      reject( error );
+      reject({ message: error?.message || "Network error", success: false });
     }
   });
 }
@@ -63,7 +68,7 @@ export function checkAuth() {
       const token = localStorage.getItem('token');
       
       if (!token) {
-        reject(new Error('No token found'));
+        reject({ message: 'No token found', success: false });
         return;
       }
       
@@ -80,10 +85,11 @@ export function checkAuth() {
         const data = await response.json();
         resolve({ data });
       } else {
-        reject(new Error('Invalid token'));
+        const errorData = await response.json().catch(() => ({ message: 'Invalid token' }));
+        reject(errorData);
       }
     } catch (error) {
-      reject(error);
+      reject({ message: error?.message || "Network error", success: false });
     }
   });
 }
@@ -101,11 +107,30 @@ export function googleLogin(googleToken) {
         const data = await response.json();
         resolve({ data });
       } else {
-        const error = await response.text();
-        reject(error);
+        const errorData = await response.json().catch(() => ({ message: "Google login failed" }));
+        reject(errorData);
       }
     } catch (error) {
-      reject(error);
+      reject({ message: error?.message || "Network error", success: false });
+    }
+  });
+}
+
+export function requestPasswordReset(email) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password-request`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        return reject(data || { message: "Failed to request password reset", success: false });
+      }
+      resolve({ data });
+    } catch (error) {
+      reject({ message: error?.message || "Network error", success: false });
     }
   });
 }

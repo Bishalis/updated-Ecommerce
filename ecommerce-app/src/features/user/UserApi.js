@@ -2,26 +2,32 @@ import { API_BASE_URL } from "../../app/constants";
 
 export  function  fetchLoggedInUserOrders() {
   const token = localStorage.getItem("token");
-  return new Promise(async (resolve) =>{
+  return new Promise(async (resolve, reject) =>{
     const response = await fetch(`${API_BASE_URL}/orders/own`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    const data = await response.json()
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      return reject(data || { message: "Failed to fetch user orders" });
+    }
     resolve({data})
   });
 }
 
 export  function  fetchLoggedInUser() {
   const token = localStorage.getItem("token");
-  return new Promise(async (resolve) =>{
+  return new Promise(async (resolve, reject) =>{
     const response = await fetch(`${API_BASE_URL}/users/own`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
-    const data = await response.json()
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      return reject(data || { message: "Failed to fetch user" });
+    }
     resolve({data})
   });
 }
